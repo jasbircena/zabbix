@@ -1,0 +1,82 @@
+version: '3.2'
+services:
+    db:
+      image: mysql
+      container_name: mysql-server
+      environment: 
+        MYSQL_DATABASE: "zabbix"
+        MYSQL_USER: "zabbix"
+        MYSQL_PASSWORD: "jasbir123"
+        MYSQL_ROOT_PASSWORD: "jasbir"
+      command: ["--character-set-server=utf8", "--collation-server=utf8_bin", "--default-authentication-plugin=mysql_native_password"]
+      volumes:
+        -  zabbixdb:/var/lib/mysql
+      #ports:
+      #  - "3306:3306"
+      networks:
+        - zabbix
+   
+    gateway:
+      image: zabbix/zabbix-java-gateway
+      container_name: zabbix-java-gateway
+      restart: unless-stopped
+      networks:
+        - zabbix
+
+    zabbix-db:
+      image: zabbix/zabbix-server-mysql
+      container_name: zabbix-server-mysql
+      restart: unless-stopped
+      depends_on:
+        - db
+      environment:
+        DB_SERVER_HOST: "mysql-server"
+        MYSQL_DATABASE: "zabbix" 
+        MYSQL_USER: "zabbix" 
+        MYSQL_PASSWORD: "jasbir123" 
+        MYSQL_ROOT_PASSWORD: "jasbir" 
+        ZBX_JAVAGATEWAY: "zabbix-java-gateway" 
+      ports:
+        - "10051:10051"
+      links:
+        - "db:mysql"
+        - "gateway:zabbix-java-gateway"
+      networks:
+        - zabbix
+
+    zabbix-web-nginx:
+      image: zabbix/zabbix-web-nginx-mysql
+      container_name: zabbix-web-nginx-mysql
+      restart: unless-stopped
+      depends_on:
+        - db
+        - zabbix-db
+      environment:
+        DB_SERVER_HOST: "mysql-server" 
+        MYSQL_DATABASE: "zabbix" 
+        MYSQL_USER: "zabbix" 
+        MYSQL_PASSWORD: "jasbir123" 
+        MYSQL_ROOT_PASSWORD: "jasbir" 
+      links:
+        - "db:mysql"
+        - "zabbix-db:zabbix-server"
+      ports:
+        - "8089:8080"
+      networks:
+        - zabbix
+
+    zabbix-agent:
+      image: zabbix/zabbix-agent
+      container_name: zabbix-agent
+      environment:
+        ZBX_HOSTNAME: "Zabbix server" 
+        ZBX_SERVER_HOST: "zabbix-server"
+      links:
+        - "db:mysql"
+        - "zabbix-db:zabbix-server"
+      networks:
+        - zabbix
+volumes:
+  zabbixdb:
+networks:
+  zabbix:
